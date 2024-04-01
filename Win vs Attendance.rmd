@@ -1,0 +1,407 @@
+---
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=T,message=F,warning=F,fig.height=5,fig.width=6,fig.align="center")
+library(tidyverse)
+library(lubridate)
+library(readxl)
+library(modelr)
+```
+## Linear Regression Model with Attendance and Winning Rates for Teams in NBA
+
+### Introduction
+Sports has always been a major role in my life. From watching or playing, I've always been interested in any sort of game, but I never thought of sports as a business, or a possible job because it seemed impossible to enjoy a job so much. However, the older I've gotten, I've realized more how big of an industry sports organizations are and how much money they generate. With this interest, I was curious how much revenue one specific sports team may make on a game and what drives these rates. I decided to weed this down to a specific sport and economic perspective. Being from Boston, a major sports city, I wanted to know how other organizations fan bases correlate to their prospective team. Do they care about them only when they're winning? Do they go to games even when they're bad? I gathered data on NBA teams and their attendance rates for each season, since the year of 2017, to find out how a winning percentage affects the attendance rate of a team.
+
+The attendance data is from ESPN and the game result data is from Basketball Reference, I then selected variables necessary, such as Attendance Percentage and Wins. COVID-19 impacts the result greatly, so I decided to exclude that year from my analysis. 
+
+Finally, I concluded that there is not an obvious relationship between winning rate and attendance rate. Other factors like franchises and superstar effects need to be considered for further research.
+
+- Intended questions: 
+    - Does the win percentage of a team affect their attendance rate within the same year? Can a linear regression model predict the relationship between these two variables appropriately? 
+
+### Background
+
+**Background information:**
+
+There are total 30 teams in the NBA. Normally, each team in an NBA season will have 82 games.The winning rate is the proportion of wins over the total number of games each teams play in each season. The attendance rate can reflect how well tickets are sold seasonally and how hot the team's season is. 
+
+The reason I choose to do total game average attendance and attendance rate was to even out the influences brought by holidays, weather, and the amount of attention a particular match receives (Cavaliers VS Warriors, two NBA final level teams, in 2017 for example).
+
+Furthermore, I decided to use the total game attendance rate, rather than the Home ones, in order to avoid bias. It is apparently easier for people who live in or near the city to attend Home games.
+
+Therefore, I finally decided to use the attendance rate and the winning rate as input for our linear regression model.
+
+
+**Data Processing**
+
+The data is obtained from ESPN ^[http://www.espn.com/nba/attendance/_/year] (attendance) and Basketball Reference ^[https://www.basketball-reference.com/leagues] (winning rate). These are two websites for basketball statistics, which are authentic and credible historical data sources.
+
+The NBA attendance tables (named nba20xx), contains data the from season 2017 to 2022. As the research focuses on the seasonal level, we selected Team, the three columns representing total game data (total game count, total average attendance, and average attendance rate) and year.
+
+```{r, include=FALSE}
+nba2023 =  read_excel("NBA2023.xlsx",sheet=1)
+
+nba2023 = nba2023 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2023["year"] <- (2023)
+
+nba2022 =  read_excel("NBA2022.xlsx",sheet=1)
+nba2022 = nba2022 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2022["year"] <- (2022)
+
+nba2021 =  read_excel("NBA2021.xlsx",sheet=1)
+nba2021 = nba2021 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2021["year"] <- (2021)
+
+nba2020 =  read_excel("NBA2020.xlsx",sheet=1)
+nba2020 = nba2020 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2020["year"] <- (2020)
+
+nba2019 =  read_excel("NBA2019.xlsx",sheet=1)
+nba2019 = nba2019 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2019["year"] <- (2019)
+
+nba2018 =  read_excel("NBA2018.xlsx",sheet=1)
+nba2018 = nba2018 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2018["year"] <- (2018)
+
+
+nba2017 =  read_excel("NBA2017.xlsx",sheet=1)
+nba2017 = nba2017 %>%
+  select(TEAM, GMS...10, AVG...11, PCT...12)%>%
+  rename(Team = TEAM, Total_Game=GMS...10, 
+         Average_Attendance = AVG...11, Attendance_Rate = PCT...12)%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  arrange(desc(Average_Attendance))
+
+nba2017["year"] <- (2017)
+
+```
+
+The seasonal NBA summary tables (named GR20xx), contain data from season 2017 to 2022. As the research focuses on the seasonal level and mainly the win-lose rate, I selected selected the Team, W (win), L (lose), and W/L% (winning rate) from the raw data.
+
+```{r, include=FALSE}
+GR2023 =  read_excel("2023GR.xlsx",sheet=1)
+GR2022 =  read_excel("2022GR.xlsx",sheet=1)
+GR2021 =  read_excel("2021GR.xlsx",sheet=1)
+GR2020 =  read_excel("2020GR.xlsx",sheet=1)
+GR2019 =  read_excel("2019GR.xlsx",sheet=1)
+GR2018 =  read_excel("2018GR.xlsx",sheet=1)
+GR2017 =  read_excel("2017GR.xlsx",sheet=1)
+
+
+GR2023 = GR2023 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+
+GR2022 = GR2022 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+
+  
+GR2021 = GR2021 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+  
+GR2020 = GR2020 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+  
+GR2019 = GR2019 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+  
+GR2018 = GR2018 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+
+GR2017 = GR2017 %>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = sub("^\\S+\\s+", '', Team))%>%
+  mutate(Team = ifelse (str_sub(Team,-1,-1)== "*",str_sub(Team, 1, nchar(Team)-1), Team ))%>%
+  select(Team, W, L, "W/L%")%>%
+  rename(Win_cnt =W, Lose_cnt =L, Win_percentage = "W/L%")
+
+```
+After that, we joined each nba20xx with a GR20xx. In this case, all information should be accessible from one series of tables.
+
+```{r, include=FALSE}
+nba2023 = nba2023 %>% 
+  full_join(GR2023, by = c("Team" = "Team")) %>% 
+  mutate(Win_percentage = Win_percentage) 
+
+nba2022 = nba2022 %>% 
+  full_join(GR2022, by = c("Team" = "Team"))
+
+nba2021 = nba2021 %>% 
+  full_join(GR2021, by = c("Team" = "Team"))
+
+nba2020 = nba2020 %>% 
+  full_join(GR2020, by = c("Team" = "Team"))
+
+nba2019 = nba2019 %>% 
+  full_join(GR2019, by = c("Team" = "Team"))
+
+nba2018 = nba2018 %>% 
+  full_join(GR2018, by = c("Team" = "Team"))
+
+nba2017 = nba2017 %>% 
+  full_join(GR2017, by = c("Team" = "Team"))
+
+```
+Finally, I combined the tables with the data in each year together to form the summary table. Average_Attendance means the average number of people attending the game in the stadium for a team in a specific year. Attendance_Rate is calculated by the number of people attending divided by the number of seats in the stadium. Win_cnt is the number of seasonal winning games and the Win_percentage is calculated by Win_cnt divided by Total Game.
+
+**Background information:**
+
+Normally, each team in a NBA season will have 82 games. The attendance rate and the average attendance can reflect how well tickets are sold seasonally and how successful the team's season is. The reason I choose to do total game average attendance and attendance rate was to even out the influences brought by holidays, weather, and the amount of attention a particular match receives (Cavaliers VS Warriors, two NBA final level teams, in 2017 for example).
+
+**Unusual Factors:**
+
+1. In the year 2020 and 2021, the number of games and attendance are influenced by the pandemic. The highest average attendance rate was 22% with a total of 4077 fans per game. As well as a total number of games for each team being 72, not 82. 
+
+2. The average attendance for each team is influenced by the size of stadium the team has. Although  the total game (home and guest), half of the number of game for each team is still at home, which means the number of seats in home stadium would decide how many people can attend at most. In this case, the data for some teams, especially with attendance rates higher than 100%, may be not fair.
+
+3. The level of love for basketball may vary from team to team in the city where their home court is located and the surrounding area. In this case, if the home team's fans do not have a good attendance at home, then it may also affect average attendance. Therefore the attendance ratio of the home team's fans can also create a disparity in attendance between teams in terms of season levels.
+
+4. The economic level of the city and surrounding area, season ticket prices, and other factors may have an impact on average attendance in a seasonal level.
+
+**Task in Rest Parts:**
+
+To address the concerns, I will do a preliminary exploration of the already processed data before completing the main task (prediction of the linear regression model). I will also remove the "COVID" year because of its unusual outliers.
+
+By exploring the change in win rate and average attendance for each team over this period (2017-2023, minus 2021), I will be able to observe whether each team's winning percentage is increasing, decreasing, or fluctuating. Additionally, the change of attendance rate will help determine if there exists any seriously unfair caused by the size of stadium. This, combined with the results of winning percentage provides a direction for subsequent plausible interpretations of the predictive model.
+
+
+```{r, include=FALSE}
+nba_summary = nba2023%>%
+  bind_rows(nba2022)%>%
+  bind_rows(nba2020)%>%
+  bind_rows(nba2019)%>%
+  bind_rows(nba2018)%>%
+  bind_rows(nba2017)
+
+nba_summary = nba_summary %>%
+  select(Team, Total_Game, Average_Attendance, Attendance_Rate, year, Win_cnt, Lose_cnt, Win_percentage) %>% 
+  mutate(Win_percentage = Win_percentage*100)
+nba_summary
+
+```
+
+### Analysis
+**Variables overview**
+
+I gave each team an analysis of **the attendance rate** for each year.
+```{r, echo=FALSE}
+ggplot(nba_summary, aes(x = year, y = Attendance_Rate)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  facet_wrap(vars(Team)) +
+  ggtitle("Attendance Rate vs Year for Each Team",
+          subtitle = "2017-2023 (exculding 2021)") +
+  xlab("Year") +
+  ylab("Attendance Rate (%)") +
+  theme(axis.text.x = element_text(margin = margin(t = 2),angle = 90,vjust = 0))
+```
+
+> The attendance rate for mist teams stay relatively consistant. Although some teams you see rapid dips or spikes For example, in 2020 the Thunder's attendance rate began to tank, likely because of the departure of franchase player Russell Westbrook. A rapid spike appears for the Bucks in 2018-2019 because of the emergence of superstar play Giannis Antetokounmpo.
+
+I also gave each team an analysis of **the winning percentage** for each year.
+```{r, echo=FALSE}
+ggplot(nba_summary, aes(x = year, y = Win_percentage)) +
+  geom_point() +
+  geom_smooth(se = FALSE) +
+  facet_wrap(vars(Team)) +
+  ggtitle("Win Percentage vs Year in Each Teams",
+          subtitle = "2017-2023 (excluding 2021)") +
+  xlab("year") +
+  ylab("Win Percentage (%)") +
+  theme(axis.text.x = element_text(margin = margin(t = 2),angle = 90,vjust = 0))
+```
+
+> For each team, they have fluctuated winning percentage each year. But some of them have an overall trend, for example, the winning rate of the Suns team is gradually increases while the Spurs continues to decrease.
+
+**Fit into model**
+
+Now we know the Attendance_Rate and Win_percentage of each team for each year. I use a **linear regression model** with win percentage to predict each team's attendance within the same year from 2017 to 2022, except 2021. A linear regression model describes the relationship between a dependent variable and one or more independent variables so it is suitable for us to answer the intended question. In our analysis, winning percentage of each team is the explanatory variable (the "x"), and attendance rate is response variable (the "y"). We will use the lm() command to build the model.
+
+The following is the summary of our fitted linear model.
+
+```{r, echo=FALSE}
+lm0 = lm(Attendance_Rate ~ Win_percentage, nba_summary)
+summary(lm0)
+```
+
+> From this linear regression model I was able to find the regression coeffecients to be: .1549(slope), and 86.257 (intercept). The positive slope coefficient of .1549 suggests that, on average, for every 1% increase in win percentage, the attendance rate increases by approximately .1549 points. While the intercept of 86.257 indicates that for a team with a zero win percentage, the estimated attendance rate would be around 86%. This gives us the regression coefficients of the win rate to predict the attendance rate. The regression coefficient produced a p-value of 1.303e-11. Since the p-value is less than the significance level of 0.01, there is strong evidence suggesting that we can reject the null hypothesis that the slope is 0. Therefore, I can conclude that there is a significant relationship between the win percentage and the attendance rate in the given data.
+
+The following graph is a scatter plot for each team's winning rate in each year versus the corresponding attendance rate.  
+
+```{r, echo=FALSE}
+ggplot(lm0, aes(x = Win_percentage, y = Attendance_Rate)) + 
+  geom_point() + 
+  geom_smooth(se =FALSE, method = "lm") +
+  ggtitle("Attendance Rate vs Win Percentage") +
+  xlab("Win Percentage (%)") +
+  ylab("Attendance rate (%)")
+
+```
+
+> We see there is positive slope, showing that as win percentage increases, so does the attendance rates.
+
+The following graph is a scatter plot for each team's winning rate in each year versus the corresponding attendance rate, with pink lines in the graph showing residuals.
+```{r, echo=FALSE}
+
+nba_summary = nba_summary %>%
+  add_residuals(lm0) %>%
+  add_predictions(lm0)
+
+ggplot(nba_summary, aes(x=Win_percentage, y=Attendance_Rate)) +   
+  geom_point() +  
+  geom_segment(aes(xend = Win_percentage, yend = pred), color="magenta") +  
+  geom_abline(aes(slope = coef(lm0)[2] , intercept = coef(lm0)[1]), color="blue") +
+  ggtitle("Attendance Rate vs Win Percentage") +
+  xlab("Win Percentage (%)") +
+  ylab("Attendance rate (%)")
+
+```
+>  The pink lines are residuals, which are the differences between predicted values and actual data. Here they range from very far from about 15% points or more, mostly when the winning percentage is below 50%.  Meanwhile the residuals are much smaller, closer to 10% or less, when the win percentage is greater the 50%. In general, the higher the win percentage, the smaller the residuals will be.
+
+The following is a plot of residuals vs. the winning percentage. 
+```{r, echo=FALSE}
+ggplot(nba_summary, aes(x=Win_percentage, y=resid)) +
+  geom_point() +
+  xlab("Win Percentage (%)") +
+  ylab("Residual") +
+  geom_hline(aes(yintercept = 0), color = "red", linetype = "dashed") +
+  geom_smooth(se=FALSE) +
+  ggtitle("Residual vs Win Percentage")
+```
+
+> We see that the residual curve appears to be negative when winning percentage is from 30% to 60%, while mostly positive between 60% to 80%.
+
+```{r, include=FALSE}
+s_yhatstar <- function(x){
+  n <- nrow(nba_summary)
+  syy <- sum(nba_summary$resid^2)/(n-2)
+  mean_x <-mean((nba_summary$Win_percentage))
+  sxx <- sum(((nba_summary$Win_percentage) - mean_x)^2)
+  out <- sqrt(syy*(1 + 1/n + ((x)-mean_x)^2/sxx))
+  return(out)
+}
+
+s_yhatstar(75) #prediction interval of error in slope and intercept
+```
+
+```{r, include=FALSE}
+b0 = lm0$coefficients[1] #intercept
+b1 = lm0$coefficients[2] #slope
+xi = 75
+yi = b0 + b1*xi
+```
+
+$$\hat y = \beta_0 + \beta_1 x = 86.2571 + 0.1549 \times 75 = 98$$
+Calculating the attendance rate using numbers we got from the model, a team with a 75% win percentage would be predicted to have about a 98% attendance rate. The following graph also shows this prediction. 
+
+```{r, echo=FALSE}
+##Visualization of this prediction
+
+ggplot(nba_summary, aes(x = Win_percentage, y = Attendance_Rate)) +
+  geom_point() +
+  geom_smooth(se = FALSE, method = "lm") +
+  geom_point(aes(x=75, y=b0 + 75*b1), color="red", size=4) + 
+  geom_vline(xintercept = 75, color="red", linetype="dashed") +
+  ylab("Attendance Rate (%)") +
+  xlab("Win Percentage (%)") +
+  ggtitle("Predicted Attendance Rate with a 75% Win Percentage")
+```
+
+I then calculate **the coefficient of correlation**, which indicates the strength and direction of the relationship between the two variables.
+```{r, echo=FALSE}
+x = nba_summary$Win_percentage
+y = nba_summary$Attendance_Rate
+
+xbar = mean(x)
+ybar = mean(y)
+sx = sd(x)
+sy = sd(y)
+r = cor(x,y) 
+r 
+```
+
+> Correlation of 0.4769238 in our predicted values graph of Win Percentage v. Attendance Rate. This number suggests a morderate  positive relationship between a team's winning rate and its attendance rate. While it is not a very strong correlation, it still suggests that there is a tendency for teams with higher winning rates to have higher attendance rates.
+
+
+### Discussion
+I didn’t include the data from the year 2021 because the COVID rules altered this data. The attendance percentage was limited the whole year to prevent the spread of COVID, so this data would affect our results tremendously of how the win percentage of a team could affect the attendance rate of a stadium, since the attendance rates averaged in that year were only as high as 15-20%. 
+
+Based on my data analysis, we can get a generalization of how a team's win percentage impacts its attendance rate, predicting that a team with a 75% win percentage in 2024 would have a attendance percentage of 98%. This prediction is a general prediction for any team.
+
+The regression coefficient produced a p-value of 1.303e-11. Since the p-value is less than the significance level of 0.01, there is strong evidence suggesting that we can reject the null hypothesis that the slope is 0. Therefore, I can conclude that there is a significant relationship between the win percentage and the attendance rate in the given data.
+
+I was able to determine with a general prediction that the higher a team’s win percentage the higher its attendance rate will be. I found the correlation coefficient "r" to be 0.4769, which is a measure of the strength of a linear relationship between our predicted attendance rate and win percentage variable. Although the correlation is not very strong, it is still statistically significant and indicates a noticeable association between the two variables (a strong one would be closer to 1 or -1). It suggests that winning performance has some influence on the attendance rate, but other factors may also contribute to attendance beyond just the team's performance on the court or field. 
+
+The residual graphs also showed that the lower the teams win percentage, the higher the residuals, meaning that the actual points were much further from the predicted line when the win percentages were lower versus when the win percentages were higher. We actually found out that when the win percentages were high, the residuals were low. Hinting that the model was more accurate at predicting for teams with winning seasons, rather than teams with losing ones.
+
+My data predicts that a team with a higher winning percentage will also have a higher attendance rate. But the data doesn’t factor in everything that would predict a team’s attendance rate. Some teams have built a franchise where it is tradition to go to games whether the team has a high winning percentage or not. For example, the Chicago Bulls are one of the most historical franchises since the Michael Jordan era. In 2018 the Bulls had the highest attendance average and were in the bottom 10 teams of wins, and then in 2019 the Bulls had the second highest attendance average and were still in the bottom 10 for wins. We can’t factor in these outliers for our general prediction. How a team’s attendance is determined may be evaluated differently for each franchise. Another factor that we ignored is the effect of a superstar player playing in a game that can impact the attendance rate of that game.
+
+In my analysis I chose to compare attendance rate against win rate, which are both percentages/ratios. Since they are ratios there is no relative significance of individual values, which allows for more accuracy in my interpretations and less room for error when considering direct errors. However, this method of analysis is unsuitable if I were to expand my analysis to generally consider the role of audience number in improving game performance.
+
+
+### Conclusion
+Based on this data, I was able to conclude that, in general, the higher a teams win percentage, the higher a teams attendance rate will be. There are other factors we have not included in our model, like some teams' franchises and superstar player effect, which affect the prediction of the linear model and thus decrease the accuracy. 
+
+### References
